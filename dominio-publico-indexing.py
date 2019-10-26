@@ -40,12 +40,7 @@ def set_logging():
 
 def create_elasticsearch_connection(logger):
     """Cria conexão com o Elasticsearch """
-    try:
-        connections.create_connection(hosts=['localhost'], timeout=20)
-    except Exception as e:
-        logger.error("Ocorreu um erro ao tentar estabelecer conexão com o Elasticsearch: {}".format(e))
-        sys.exit(-1)
-
+    connections.create_connection(hosts=['localhost'], timeout=20)
 
 def index_pdf(logger, file_path, metadata):
     """Indexa documento PDF no Elasticsearch """
@@ -58,7 +53,6 @@ def index_pdf(logger, file_path, metadata):
 
     for num_page in range(num_pages):
         logger.info("Página {}/{}".format(num_page+1, num_pages))
-
 
         page = pdf.loadPage(num_page)
         page_content = page.getText("text")
@@ -78,7 +72,7 @@ def index_pdf(logger, file_path, metadata):
                 base64=page_content_base64_str
                 )
 
-        logger.info("Indexando página {}...".format(num_page+1, num_pages))
+        logger.info("Indexando página {}...".format(num_page+1))
 
         document.save(pipeline='dominio-publico-extracao-pdf')
 
