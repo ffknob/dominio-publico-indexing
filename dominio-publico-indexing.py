@@ -3,7 +3,7 @@ import sys
 import os
 from argparse import ArgumentParser
 import logging
-import fitz
+from PyPDF2 import PdfFileReader, PdfFileWriter
 import base64
 from elasticsearch_dsl import connections
 from pagina import Pagina
@@ -44,24 +44,32 @@ def create_elasticsearch_connection(logger):
 
 def index_pdf(logger, file_path, metadata):
     """Indexa documento PDF no Elasticsearch """
-    pdf = fitz.open(file_path)
-    num_pages = pdf.pageCount
 
     logger.debug("Metadados: {} ".format(metadata))
 
+    fname = os.path.splitext(os.path.basename(file_path))[0]
+    pdf = PdfFileReader(file_path)
+    num_pages = pdf.getNumPages()
     logger.debug("PDF possui {}".format(num_pages))
 
-    for num_page in range(num_pages):
+    for num_page in range(pdf.getNumPages()):
         logger.info("Página {}/{}".format(num_page+1, num_pages))
 
-        page = pdf.loadPage(num_page)
-        page_content = page.getText("text")
-        page_content_base64_encoded = base64.b64encode(page_content.encode('utf-8'))
-        page_content_base64_str = str(page_content_base64_encoded, 'utf-8')
+        pdf_writer = PdfFileWriter()
+        pdf_writer.addPage(pdf.getPage(num_page))
 
-        logger.debug("Base64 da página {}: {}".format(num_page+1, page_content_base64_str))
+        page_filename = '/tmp/{}-{}.pdf'.format(fname, num_page+1)
 
-        document = Pagina(
+        logger.info("Criando arquivo {}".format(page_filename))
+
+        with open(page_filename, 'wb') as page:
+            pdf_writer.write(page)
+
+        with open(page_filename, 'rb') as page_file:
+            page_content_base64_encoded = base64.b64encode(page_file.read())
+            page_content_base64_str = str(page_content_base64_encoded, 'utf-8')
+
+            document = Pagina(
                 autor=metadata['autor'],
                 titulo=metadata['titulo'],
                 categoria=metadata['categoria'],
@@ -70,11 +78,15 @@ def index_pdf(logger, file_path, metadata):
                 acessos=metadata['acessos'],
                 pagina=num_page+1,
                 base64=page_content_base64_str
-                )
+            )
 
-        logger.info("Indexando página {}...".format(num_page+1))
+            logger.info("Indexando página {}...".format(num_page+1))
 
-        document.save(pipeline='dominio-publico-extracao-pdf')
+            document.save(pipeline='dominio-publico-extracao-pdf')
+
+            logger.info("Removendo arquivo {}".format(page_filename))
+
+            os.remove(page_filename)
 
 def main():
     parser = set_arguments_parser()

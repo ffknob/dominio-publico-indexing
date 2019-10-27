@@ -7,7 +7,7 @@ verify_ssl = true
 
 [packages]
 elasticsearch-dsl = "*"
-pymupdf = "*"
+pypdf2 = "*"
 
 [requires]
 python_version = "3.7"
